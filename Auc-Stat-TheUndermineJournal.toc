@@ -1,0 +1,12 @@
+## Title: Auc:Stat:TheUndermineJournal
+## Notes: Auctioneer statistics module that uses market data from The Undermine Journal.
+##
+## Interface: 40200
+## Dependencies: Auc-Advanced
+## OptionalDeps: TheUndermineJournal, TheUndermineJournalGE
+##
+## Version: 0.1
+## Author: Johnny C. Lam
+##
+Localization.lua
+TheUndermineJournal.lua
