@@ -47,18 +47,18 @@
 		["TUJ_HelpTooltip_ToggleStdDev"] = "Toggle display of the market price standard deviation from the past 14 days.",
 
 		-- Section: Interface
-		["TUJ_Interface_EnableUndermineJournal"] = "Enable Simple Stats",
+		["TUJ_Interface_EnableUndermineJournal"] = "Enable The Undermine Journal Stats",
 		["TUJ_Interface_MultiplyStack"] = "Multiply by stack size",
 		["TUJ_Interface_Show"] = "Show The Undermine Journal stats in the tooltip",
-		["TUJ_Interface_UndermineJournalOptions"] = "The Undermine Journal Options",
 		["TUJ_Interface_ToggleMean"]	= "Display Mean",
 		["TUJ_Interface_ToggleReagents"] = "Display Reagents Price",
 		["TUJ_Interface_ToggleStdDev"]	= "Display Standard Deviation",
+		["TUJ_Interface_UndermineJournalOptions"] = "The Undermine Journal Options",
 
 		-- Section: Tooltip
 		['TUJ_Tooltip_MarketLatest'] = "Market Latest x%d",
-		['TUJ_Tooltip_ReagentsLatest'] = "Reagents Latest x%d",
 		['TUJ_Tooltip_MarketMean'] = "Market Mean x%d",
 		['TUJ_Tooltip_MarketStdDev'] = "Market Std Dev x%d",
+		['TUJ_Tooltip_ReagentsLatest'] = "Reagents Latest x%d",
 	}
 }
