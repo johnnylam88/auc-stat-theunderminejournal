@@ -60,5 +60,5 @@
 		['TUJ_Tooltip_MarketMean'] = "Market Mean x%d",
 		['TUJ_Tooltip_MarketStdDev'] = "Market Std Dev x%d",
 		['TUJ_Tooltip_ReagentsLatest'] = "Reagents Latest x%d",
-	}
+	},
 }
