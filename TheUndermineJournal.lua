@@ -141,7 +141,7 @@ function private.SetupConfigGui(gui)
 
 	-- All options in here will be duplicated in the tooltip frame
 	function private.addTooltipControls(id)
-		gui:AddControl(id, "Header",     0,    _L('TUJ_Interface_UndermineJournalOptions'))
+		gui:AddControl(id, "Header",     0,    _TRANS('TUJ_Interface_UndermineJournalOptions'))
 		gui:AddControl(id, "Note",       0, 1, nil, nil, " ")
 		gui:AddControl(id, "Checkbox",   0, 1, "stat.underminejournal.enable", _TRANS('TUJ_Interface_EnableUndermineJournal'))
 		gui:AddTip(id, _TRANS('TUJ_HelpTooltip_EnableUndermineJournal'))
