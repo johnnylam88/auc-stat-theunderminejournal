@@ -42,8 +42,8 @@
 		["TUJ_HelpTooltip_EnableUndermineJournal"] = "Allow Auctioneer to use market data from The Undermine Journal.",
 		["TUJ_HelpTooltip_MultiplyStack"] = "Toggle display of prices by item or by current stack size.",
 		["TUJ_HelpTooltip_Show"] = "Toggle display of stats from The Undermine Journal module on or off.",
-		["TUJ_HelpTooltip_ToggleMedian"] = "Toggle display of the market median price from the past 14 days.",
 		["TUJ_HelpTooltip_ToggleMean"] = "Toggle display of the market average price from the past 14 days.",
+		["TUJ_HelpTooltip_ToggleMedian"] = "Toggle display of the market median price from the past 14 days.",
 		["TUJ_HelpTooltip_ToggleReagents"] = "Toggle display of the total market price of the reagents used to craft the item.",
 		["TUJ_HelpTooltip_ToggleStdDev"] = "Toggle display of the market price standard deviation from the past 14 days.",
 
@@ -51,16 +51,16 @@
 		["TUJ_Interface_EnableUndermineJournal"] = "Enable The Undermine Journal Stats",
 		["TUJ_Interface_MultiplyStack"] = "Multiply by stack size",
 		["TUJ_Interface_Show"] = "Show The Undermine Journal stats in the tooltip",
-		["TUJ_Interface_ToggleMedian"]	= "Display Median",
 		["TUJ_Interface_ToggleMean"]	= "Display Mean",
+		["TUJ_Interface_ToggleMedian"]	= "Display Median",
 		["TUJ_Interface_ToggleReagents"] = "Display Reagents Price",
 		["TUJ_Interface_ToggleStdDev"]	= "Display Standard Deviation",
 		["TUJ_Interface_UndermineJournalOptions"] = "The Undermine Journal Options",
 
 		-- Section: Tooltip
 		['TUJ_Tooltip_MarketLatest'] = "Market Latest x%d",
-		['TUJ_Tooltip_MarketMedian'] = "Market Median x%d",
 		['TUJ_Tooltip_MarketMean'] = "Market Mean x%d",
+		['TUJ_Tooltip_MarketMedian'] = "Market Median x%d",
 		['TUJ_Tooltip_MarketStdDev'] = "Market Std Dev x%d",
 		['TUJ_Tooltip_ReagentsLatest'] = "Reagents Latest x%d",
 	},
