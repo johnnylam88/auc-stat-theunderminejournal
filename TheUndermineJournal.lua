@@ -56,19 +56,13 @@ lib.Processors.config = lib.Processor
 function lib.GetPrice(hyperlink, serverKey)
 	if not get("stat.underminejournal.enable") then return end
 	if not private.IsTheUndermineJournalLoaded() then return end
-	serverKey = serverKey or GetFaction()
 
-	local linkType, itemId, suffix, factor = decode(hyperlink)
-	if (linkType ~= "item") then return end
-
-	local dta = {}
-	TUJMarketInfo(itemId, dta)
-	return dta.market, dta.reagentprice, dta.marketaverage, dta.marketstddev, dta.quantity
+	local price, reagents, median, mean, stddev, qty = private.GetInfo(hyperlink, serverKey)
+	return price, reagents, median, mean, stddev, qty
 end
 
 function lib.GetPriceColumns()
-	if not private.IsTheUndermineJournalLoaded() then return end
-	return "Market Latest", "Reagents Latest", "Market Mean", "Market Std Dev", "Qty Available"
+	return "Market Latest", "Reagents Latest", "Market Median", "Market Mean", "Market Std Dev", "Qty Available"
 end
 
 local array = {}
@@ -76,13 +70,17 @@ function lib.GetPriceArray(hyperlink, serverKey)
 	if not get("stat.underminejournal.enable") then return end
 	if not private.IsTheUndermineJournalLoaded() then return end
 
-	local price, reagents, mean, stddev, qty = lib.GetPrice(hyperlink, serverKey)
-
+	local price, reagents, median, mean, stddev, qty = private.GetInfo(hyperlink, serverKey)
 	wipe(array)
-	array.price = price
-	array.seen = qty and qty or 0	-- (poorly) approximate "seen" with the current AH quantity.
+
+	-- If price isn't available (such as for the TUJGE data), then fall back to using the median price.
+	array.price = price and price or median
+
+	-- (Poorly) approximate "seen" with the current AH quantity.
+	array.seen = qty and qty or 0
 
 	array.reagents = reagents
+	array.median = median
 	array.mean = mean
 	array.stddev = stddev
 	array.qty = qty
@@ -94,7 +92,7 @@ local bellCurve = AucAdvanced.API.GenerateBellCurve()
 function lib.GetItemPDF(hyperlink, serverKey)
 	if not get("stat.underminejournal.enable") then return end
 
-	local _, _, mean, stddev, _ = lib.GetPrice(hyperlink, serverKey)
+	local _, _, _, mean, stddev, _ = private.GetInfo(hyperlink, serverKey)
 	if not mean or not stddev or mean == 0 or stddev == 0 then
 		return	-- no available data
 	end
@@ -115,10 +113,20 @@ end
 function lib.OnLoad(addon)
 	default("stat.underminejournal.tooltip", false)
 	default("stat.underminejournal.reagents", true)
+	default("stat.underminejournal.median", true)
 	default("stat.underminejournal.mean", true)
 	default("stat.underminejournal.stddev", true)
 	default("stat.underminejournal.quantmul", true)
 	default("stat.underminejournal.enable", false)
+end
+
+function private.GetInfo(hyperlink, serverKey)
+	local linkType, itemId, suffix, factor = decode(hyperlink)
+	if (linkType ~= "item") then return end
+
+	local dta = {}
+	TUJMarketInfo(itemId, dta)
+	return dta.market, dta.reagentprice, dta.marketmedian, dta.marketaverage, dta.marketstddev, dta.quantity
 end
 
 -- Localization via Auctioneer's Babylonian; from Auc-Advanced/CoreUtil.lua
@@ -151,6 +159,8 @@ function private.SetupConfigGui(gui)
 		gui:AddTip(id, _TRANS('TUJ_HelpTooltip_Show'))
 		gui:AddControl(id, "Checkbox",   0, 6, "stat.underminejournal.reagents", _TRANS('TUJ_Interface_ToggleReagents'))
 		gui:AddTip(id, _TRANS('TUJ_HelpTooltip_ToggleReagents'))
+		gui:AddControl(id, "Checkbox",   0, 6, "stat.underminejournal.median", _TRANS('TUJ_Interface_ToggleMedian'))
+		gui:AddTip(id, _TRANS('TUJ_HelpTooltip_ToggleMedian'))
 		gui:AddControl(id, "Checkbox",   0, 6, "stat.underminejournal.mean", _TRANS('TUJ_Interface_ToggleMean'))
 		gui:AddTip(id, _TRANS('TUJ_HelpTooltip_ToggleMean'))
 		gui:AddControl(id, "Checkbox",   0, 6, "stat.underminejournal.stddev", _TRANS('TUJ_Interface_ToggleStdDev'))
@@ -171,16 +181,22 @@ function lib.ProcessTooltip(tooltip, name, hyperlink, quality, quantity, cost, .
 	if not get("stat.underminejournal.enable") then return end
 	if not get("stat.underminejournal.tooltip") then return end
 	local serverKey = GetFaction()
-	local price, reagents, mean, stddev, qty = lib.GetPrice(hyperlink, serverKey)
-	if not price then return end
+	local price, reagents, median, mean, stddev, qty = private.GetInfo(hyperlink, serverKey)
+
+	if not (price or reagents or median or mean or stddev) then return end
 
 	if not quantity or quantity < 1 then quantity = 1 end
 	if not get("stat.underminejournal.quantmul") then quantity = 1 end
 
 	tooltip:AddLine("The Undermine Journal Prices:")
-	tooltip:AddLine("  " .. _TRANS('TUJ_Tooltip_MarketLatest'):format(quantity), price * quantity)
+	if price then
+		tooltip:AddLine("  " .. _TRANS('TUJ_Tooltip_MarketLatest'):format(quantity), price * quantity)
+	end
 	if reagents and get("stat.underminejournal.reagents") then
 		tooltip:AddLine("  " .. _TRANS('TUJ_Tooltip_ReagentsLatest'):format(quantity), reagents * quantity)
+	end
+	if median and get("stat.underminejournal.median") then
+		tooltip:AddLine("  " .. _TRANS('TUJ_Tooltip_MarketMedian'):format(quantity), median * quantity)
 	end
 	if mean and get("stat.underminejournal.mean") then
 		tooltip:AddLine("  " .. _TRANS('TUJ_Tooltip_MarketMean'):format(quantity), mean * quantity)
