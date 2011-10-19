@@ -179,7 +179,11 @@ end
 
 function lib.ProcessTooltip(tooltip, name, hyperlink, quality, quantity, cost, ...)
 	if not get("stat.underminejournal.enable") then return end
-	if not get("stat.underminejournal.tooltip") then return end
+	if not get("stat.underminejournal.tooltip") then
+		if TUJTooltip then TUJTooltip(true) end
+		return
+	end
+	if TUJTooltip then TUJTooltip(false) end
 	local serverKey = GetFaction()
 	local price, reagents, median, mean, stddev, qty = private.GetInfo(hyperlink, serverKey)
 
