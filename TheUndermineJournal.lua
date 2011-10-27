@@ -36,22 +36,26 @@ if not AucAdvanced then return end
 local libType, libName = "Stat", "The Undermine Journal"
 local lib, parent, private = AucAdvanced.NewModule(libType, libName)
 if not lib then return end
-local print, decode, _, _, replicate, empty, get, set, default, debugPrint, fill, _TRANS = AucAdvanced.GetModuleLocals()
+local aucPrint, decode, _, _, replicate, empty, get, set, default, debugPrint, fill, _TRANS = AucAdvanced.GetModuleLocals()
 local GetFaction = AucAdvanced.GetFaction
 
-function lib.Processor(callbackType, ...)
-	if (callbackType == "config") then
-		private.SetupConfigGui(...)
-	elseif (callbackType == "load") then
-		lib.OnLoad(...)
-	elseif (callbackType == "tooltip") then
-		lib.ProcessTooltip(...)
+lib.Processors = {}
+lib.Processors.tooltip = function(callbackType, ...)
+	private.ProcessTooltip(...)
+end
+
+lib.Processors.config = function(callbackType, gui)
+	if private.SetupConfigGui then
+		private.SetupConfigGui(gui)
 	end
 end
 
-lib.Processors = {}
-lib.Processors.tooltip = lib.Processor
-lib.Processors.config = lib.Processor
+lib.Processors.load = function(callbackType, addon)
+	-- check that this is our load message, and that our OnLoad function still exists
+	if addon == "auc-stat-theunderminejournal" and private.OnLoad then
+		private.OnLoad(addon)
+	end
+end
 
 function lib.GetPrice(hyperlink, serverKey)
 	if not get("stat.underminejournal.enable") then return end
@@ -110,7 +114,7 @@ function lib.IsValidAlgorithm()
 	return true
 end
 
-function lib.OnLoad(addon)
+function private.OnLoad(addon)
 	default("stat.underminejournal.tooltip", false)
 	default("stat.underminejournal.reagents", true)
 	default("stat.underminejournal.median", true)
@@ -118,6 +122,7 @@ function lib.OnLoad(addon)
 	default("stat.underminejournal.stddev", true)
 	default("stat.underminejournal.quantmul", true)
 	default("stat.underminejournal.enable", false)
+	private.OnLoad = nil -- only run this function once
 end
 
 function private.GetInfo(hyperlink, serverKey)
@@ -148,7 +153,7 @@ function private.SetupConfigGui(gui)
 	)
 
 	-- All options in here will be duplicated in the tooltip frame
-	function private.addTooltipControls(id)
+	local function addTooltipControls(id)
 		gui:AddControl(id, "Header",     0,    _TRANS('TUJ_Interface_UndermineJournalOptions'))
 		gui:AddControl(id, "Note",       0, 1, nil, nil, " ")
 		gui:AddControl(id, "Checkbox",   0, 1, "stat.underminejournal.enable", _TRANS('TUJ_Interface_EnableUndermineJournal'))
@@ -173,11 +178,13 @@ function private.SetupConfigGui(gui)
 
 	local tooltipID = AucAdvanced.Settings.Gui.tooltipID
 
-	private.addTooltipControls(id)
-	if tooltipID then private.addTooltipControls(tooltipID) end
+	addTooltipControls(id)
+	if tooltipID then addTooltipControls(tooltipID) end
+
+	private.SetupConfigGui = nil -- only run once
 end
 
-function lib.ProcessTooltip(tooltip, name, hyperlink, quality, quantity, cost, ...)
+function private.ProcessTooltip(tooltip, name, hyperlink, quality, quantity, cost, ...)
 	if not get("stat.underminejournal.enable") then return end
 	if not get("stat.underminejournal.tooltip") then
 		if TUJTooltip then TUJTooltip(true) end
