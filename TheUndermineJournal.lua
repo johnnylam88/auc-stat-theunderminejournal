@@ -59,7 +59,6 @@ end
 
 function lib.GetPrice(hyperlink, serverKey)
 	if not get("stat.underminejournal.enable") then return end
-	if not private.IsTheUndermineJournalLoaded() then return end
 
 	local price, reagents, median, mean, stddev, qty = private.GetInfo(hyperlink, serverKey)
 	return price, reagents, median, mean, stddev, qty
@@ -72,7 +71,6 @@ end
 local array = {}
 function lib.GetPriceArray(hyperlink, serverKey)
 	if not get("stat.underminejournal.enable") then return end
-	if not private.IsTheUndermineJournalLoaded() then return end
 
 	local price, reagents, median, mean, stddev, qty = private.GetInfo(hyperlink, serverKey)
 	wipe(array)
@@ -126,6 +124,8 @@ function private.OnLoad(addon)
 end
 
 function private.GetInfo(hyperlink, serverKey)
+	if not private.IsTheUndermineJournalLoaded() then return end
+
 	local linkType, itemId, suffix, factor = decode(hyperlink)
 	if (linkType ~= "item") then return end
 
