@@ -75,12 +75,11 @@ function lib.GetPriceArray(hyperlink, serverKey)
 	local price, reagents, median, mean, stddev, qty = private.GetInfo(hyperlink, serverKey)
 	wipe(array)
 
-	-- If price isn't available (such as for the TUJGE data), then fall back to using the median price.
-	array.price = price and price or median
+	-- Required entries (see Stat-Example2)
+	array.price = mean
+	array.seen = qty and qty or 0	-- (Poorly) approximate "seen" with the current AH quantity.
 
-	-- (Poorly) approximate "seen" with the current AH quantity.
-	array.seen = qty and qty or 0
-
+	array.latest = price
 	array.reagents = reagents
 	array.median = median
 	array.mean = mean
