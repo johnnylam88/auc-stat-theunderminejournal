@@ -1,0 +1,4 @@
+package-as: Auc-Stat-TheUndermineJournal
+
+required-dependencies:
+	- auctioneer
