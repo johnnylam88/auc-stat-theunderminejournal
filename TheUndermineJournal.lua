@@ -1,12 +1,6 @@
---[[
+--[[--------------------------------------------------------------------
 	Auc-Stat-TheUndermineJournal - The Undermine Journal price statistics module
-
-	This is an Auctioneer statistics module that returns price data from 
-	The Undermine Journal addon.  You must have either The Undermine Journal
-	or The Undermine Journal GE addon installed for this module to have any
-	effect.
-
-	Copyright (c) 2011, Johnny C. Lam
+	Copyright (c) 2011, 2012 Johnny C. Lam
 	All rights reserved.
 
 	Redistribution and use in source and binary forms, with or without
@@ -17,7 +11,7 @@
 	   notice, this list of conditions and the following disclaimer.
 	2. Redistributions in binary form must reproduce the above copyright
 	   notice, this list of conditions and the following disclaimer in the
-       documentation and/or other materials provided with the distribution.
+	   documentation and/or other materials provided with the distribution.
 
 	THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 	"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -30,117 +24,134 @@
 	CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 	ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 	POSSIBILITY OF SUCH DAMAGE.
- --]]
+--]]--------------------------------------------------------------------
+
 if not AucAdvanced then return end
 
 local libType, libName = "Stat", "The Undermine Journal"
 local lib, parent, private = AucAdvanced.NewModule(libType, libName)
 if not lib then return end
+
 local aucPrint, decode, _, _, replicate, empty, get, set, default, debugPrint, fill, _TRANS = AucAdvanced.GetModuleLocals()
 local GetFaction = AucAdvanced.GetFaction
+local wipe = wipe
 
-lib.Processors = {}
-lib.Processors.tooltip = function(callbackType, ...)
-	private.ProcessTooltip(...)
-end
+-- TUJ data table for market data from most-recently requested item.
+local tujData = { }
 
-lib.Processors.config = function(callbackType, gui)
-	if private.SetupConfigGui then
-		private.SetupConfigGui(gui)
-	end
-end
+lib.Processors = {
+	config = function(callbackType, ...)
+			private.SetupConfigGui(...)
+		end,
+	load = function(callbackType, addon)
+			if private.OnLoad then
+				private.OnLoad(addon)
+			end
+		end,
+	tooltip = function(callbackType, ...)
+			private.ProcessTooltip(...)
+		end,
+}
 
-lib.Processors.load = function(callbackType, addon)
-	-- check that this is our load message, and that our OnLoad function still exists
-	if addon == "auc-stat-theunderminejournal" and private.OnLoad then
-		private.OnLoad(addon)
-	end
-end
-
+-- lib.GetPrice()
+--     (optional) Returns estimated price for item link.
 function lib.GetPrice(hyperlink, serverKey)
 	if not get("stat.underminejournal.enable") then return end
-
-	local price, reagents, median, mean, stddev, qty = private.GetInfo(hyperlink, serverKey)
-	return price, reagents, median, mean, stddev, qty
+	if not private.GetInfo(hyperlink, serverKey) then return end
+	return tujData.market, tujData.reagentprice, tujData.marketaverage, tujData.marketstddev, tujData.quantity
 end
 
+-- lib.GetPriceColumns()
+--     (optional) Returns the column names for GetPrice.
 function lib.GetPriceColumns()
-	return "Market Latest", "Reagents Latest", "Market Median", "Market Mean", "Market Std Dev", "Qty Available"
+	return "Market Latest", "Reagents Latest", "Market Mean", "Market Std Dev", "Qty Available"
 end
 
-local array = {}
+-- lib.GetPriceArray()
+--     Returns pricing and other statistical info in an array.
+local priceArray = {}
 function lib.GetPriceArray(hyperlink, serverKey)
 	if not get("stat.underminejournal.enable") then return end
+	if not private.GetInfo(hyperlink, serverKey) then return end
 
-	local price, reagents, median, mean, stddev, qty = private.GetInfo(hyperlink, serverKey)
-	wipe(array)
+	wipe(priceArray)
 
-	-- Required entries (see Stat-Example2)
-	array.price = mean
-	array.seen = qty and qty or 0	-- (Poorly) approximate "seen" with the current AH quantity.
+	-- Required entries for GetMarketPrice().
+	priceArray.price = tujData.marketaverage
+	-- (Poorly) approximate "seen" with the current AH quantity.
+	priceArray.seen = tujData.quantity
 
-	array.latest = price
-	array.reagents = reagents
-	array.median = median
-	array.mean = mean
-	array.stddev = stddev
-	array.qty = qty
+	priceArray.market = tujData.market
+	priceArray.quantity = tujData.quantity
+	priceArray.reagentprice = tujData.reagentprice
+	priceArray.marketaverage = tujData.marketaverage
+	priceArray.marketstddev = tujData.marketstddev
 
-	return array
+	return priceArray
 end
 
+-- lib.GetItemPDF()
+--     Returns Probability Density Function for item link.
 local bellCurve = AucAdvanced.API.GenerateBellCurve()
 function lib.GetItemPDF(hyperlink, serverKey)
 	if not get("stat.underminejournal.enable") then return end
+	if not private.GetInfo(hyperlink, serverKey) then return end
 
-	local _, _, _, mean, stddev, _ = private.GetInfo(hyperlink, serverKey)
-	if not mean or not stddev or mean == 0 or stddev == 0 then
-		return	-- no available data
+	local mean, stddev = tujData.marketaverage, tujData.marketstddev
+	if not mean or not stddev or stddev == 0 then
+		-- No available data.
+		return
 	end
 
-	-- Calculate the lower and upper bounds as +/- 3 standard deviations
+	-- Calculate the lower and upper bounds as +/- 3 standard deviations.
 	local lower, upper = (mean - 3 * stddev), (mean + 3 * stddev)
 
 	bellCurve:SetParameters(mean, stddev)
 	return bellCurve, lower, upper
 end
 
-function lib.IsValidAlgorithm()
+function lib.IsValidAlgorithm(hyperlink)
 	if not get("stat.underminejournal.enable") then return false end
-	if not private.IsTheUndermineJournalLoaded() then return false end
-	return true
+	if not private.GetInfo(hyperlink, serverKey) then return end
+	return true, itemId
 end
 
 function private.OnLoad(addon)
+	if addon ~= "auc-stat-theunderminejournal" then return end
+
 	default("stat.underminejournal.tooltip", false)
 	default("stat.underminejournal.reagents", true)
-	default("stat.underminejournal.median", true)
 	default("stat.underminejournal.mean", true)
 	default("stat.underminejournal.stddev", true)
 	default("stat.underminejournal.quantmul", true)
 	default("stat.underminejournal.enable", false)
-	private.OnLoad = nil -- only run this function once
+
+	-- Only run this function once.
+	private.OnLoad = nil
 end
 
+-- private.GetInfo(hyperlink, serverKey)
+--     Returns the market info for the requested item in the tujData table.
 function private.GetInfo(hyperlink, serverKey)
-	if not private.IsTheUndermineJournalLoaded() then return end
-
 	local linkType, itemId, suffix, factor = decode(hyperlink)
-	if (linkType ~= "item") then return end
+	if linkType ~= "item" then return nil end
 
-	local dta = {}
-	TUJMarketInfo(itemId, dta)
-	return dta.market, dta.reagentprice, dta.marketmedian, dta.marketaverage, dta.marketstddev, dta.quantity
-end
+	wipe(tujData)
+	if TUJMarketInfo then
+		TUJMarketInfo(itemId, tujData)
+	end
+	if not tujData.itemid then
+		return nil
+	end
+	tujData.quantity = tujData.quantity or 0
 
--- Localization via Auctioneer's Babylonian; from Auc-Advanced/CoreUtil.lua
-local Babylonian = LibStub("Babylonian")
-assert(Babylonian, "Babylonian is not installed")
-local babylonian = Babylonian(AucStatTheUndermineJournalLocalizations)
-_TRANS = function (stringKey)
-	local locale = get("SelectedLocale")	-- locales are user choose-able
-	-- translated key or english Key or Raw Key
-	return babylonian(locale, stringKey) or babylonian[stringKey] or stringKey
+	-- If there are zero quantity and market data is missing, then fallback to using the GE (all realms) data.
+	if tujData.quantity == 0 and not tujData.marketaverage then
+		tujData.marketaverage = tujData.gemarketaverage
+		tujData.marketstddev = tujData.gemarketstddev
+	end
+
+	return itemId
 end
 
 function private.SetupConfigGui(gui)
@@ -152,7 +163,7 @@ function private.SetupConfigGui(gui)
 	)
 
 	-- All options in here will be duplicated in the tooltip frame
-	local function addTooltipControls(id)
+	function private.addTooltipControls(id)
 		gui:AddControl(id, "Header",     0,    _TRANS('TUJ_Interface_UndermineJournalOptions'))
 		gui:AddControl(id, "Note",       0, 1, nil, nil, " ")
 		gui:AddControl(id, "Checkbox",   0, 1, "stat.underminejournal.enable", _TRANS('TUJ_Interface_EnableUndermineJournal'))
@@ -163,8 +174,6 @@ function private.SetupConfigGui(gui)
 		gui:AddTip(id, _TRANS('TUJ_HelpTooltip_Show'))
 		gui:AddControl(id, "Checkbox",   0, 6, "stat.underminejournal.reagents", _TRANS('TUJ_Interface_ToggleReagents'))
 		gui:AddTip(id, _TRANS('TUJ_HelpTooltip_ToggleReagents'))
-		gui:AddControl(id, "Checkbox",   0, 6, "stat.underminejournal.median", _TRANS('TUJ_Interface_ToggleMedian'))
-		gui:AddTip(id, _TRANS('TUJ_HelpTooltip_ToggleMedian'))
 		gui:AddControl(id, "Checkbox",   0, 6, "stat.underminejournal.mean", _TRANS('TUJ_Interface_ToggleMean'))
 		gui:AddTip(id, _TRANS('TUJ_HelpTooltip_ToggleMean'))
 		gui:AddControl(id, "Checkbox",   0, 6, "stat.underminejournal.stddev", _TRANS('TUJ_Interface_ToggleStdDev'))
@@ -177,49 +186,36 @@ function private.SetupConfigGui(gui)
 
 	local tooltipID = AucAdvanced.Settings.Gui.tooltipID
 
-	addTooltipControls(id)
-	if tooltipID then addTooltipControls(tooltipID) end
-
-	private.SetupConfigGui = nil -- only run once
+	private.addTooltipControls(id)
+	if tooltipID then private.addTooltipControls(tooltipID) end
 end
 
 function private.ProcessTooltip(tooltip, name, hyperlink, quality, quantity, cost, ...)
-	if not get("stat.underminejournal.enable") then return end
+	-- If the Auctioneer TUJ tooltip is enabled, then disable TUJ's tooltip, and vice versa.
 	if not get("stat.underminejournal.tooltip") then
 		if TUJTooltip then TUJTooltip(true) end
 		return
+	else
+		if TUJTooltip then TUJTooltip(false) end
 	end
-	if TUJTooltip then TUJTooltip(false) end
-	local serverKey = GetFaction()
-	local price, reagents, median, mean, stddev, qty = private.GetInfo(hyperlink, serverKey)
-
-	if not (price or reagents or median or mean or stddev) then return end
+	if not private.GetInfo(hyperlink, serverKey) then return end
 
 	if not quantity or quantity < 1 then quantity = 1 end
 	if not get("stat.underminejournal.quantmul") then quantity = 1 end
 
-	tooltip:AddLine("The Undermine Journal Prices:")
-	if price then
-		tooltip:AddLine("  " .. _TRANS('TUJ_Tooltip_MarketLatest'):format(quantity), price * quantity)
+	if tujData.market or tujData.reagentprice or tujData.marketaverage or tujData.marketstddev then
+		tooltip:AddLine("The Undermine Journal:")
 	end
-	if reagents and get("stat.underminejournal.reagents") then
-		tooltip:AddLine("  " .. _TRANS('TUJ_Tooltip_ReagentsLatest'):format(quantity), reagents * quantity)
+	if tujData.market then
+		tooltip:AddLine("  " .. _TRANS('TUJ_Tooltip_MarketLatest'):format(quantity), tujData.market * quantity)
 	end
-	if median and get("stat.underminejournal.median") then
-		tooltip:AddLine("  " .. _TRANS('TUJ_Tooltip_MarketMedian'):format(quantity), median * quantity)
+	if tujData.reagentprice and get("stat.underminejournal.reagents") then
+		tooltip:AddLine("  " .. _TRANS('TUJ_Tooltip_ReagentsLatest'):format(quantity), tujData.reagentprice * quantity)
 	end
-	if mean and get("stat.underminejournal.mean") then
-		tooltip:AddLine("  " .. _TRANS('TUJ_Tooltip_MarketMean'):format(quantity), mean * quantity)
+	if tujData.marketaverage and get("stat.underminejournal.mean") then
+		tooltip:AddLine("  " .. _TRANS('TUJ_Tooltip_MarketMean'):format(quantity), tujData.marketaverage * quantity)
 	end
-	if stddev and get("stat.underminejournal.stddev") then
-		tooltip:AddLine("  " .. _TRANS('TUJ_Tooltip_MarketStdDev'):format(quantity), stddev * quantity)
-	end
-end
-
-function private.IsTheUndermineJournalLoaded()
-	if TUJMarketInfo then
-		return TUJMarketInfo(0)		-- true if TUJ market data is available; false otherwise
-	else
-		return false
+	if tujData.marketstddev and get("stat.underminejournal.stddev") then
+		tooltip:AddLine("  " .. _TRANS('TUJ_Tooltip_MarketStdDev'):format(quantity), tujData.marketstddev * quantity)
 	end
 end
