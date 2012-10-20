@@ -58,13 +58,15 @@ lib.Processors = {
 function lib.GetPrice(hyperlink, serverKey)
 	if not get("stat.underminejournal.enable") then return end
 	if not private.GetInfo(hyperlink, serverKey) then return end
-	return tujData.market, tujData.reagentprice, tujData.marketaverage, tujData.marketstddev, tujData.quantity
+	return tujData.market, tujData.reagentprice, tujData.marketaverage, tujData.marketstddev, tujData.quantity,
+		tujData.gemarketmedian, tujData.gemarketmean, tujData.gemarketstddev
 end
 
 -- lib.GetPriceColumns()
 --     (optional) Returns the column names for GetPrice.
 function lib.GetPriceColumns()
-	return "Market Latest", "Reagents Latest", "Market Mean", "Market Std Dev", "Qty Available"
+	return "Market Latest", "Reagents Latest", "Market Mean", "Market Std Dev", "Qty Available",
+		"Global Market Median", "Global Market Mean", "Global Market Std Dev"
 end
 
 -- lib.GetPriceArray()
@@ -86,6 +88,9 @@ function lib.GetPriceArray(hyperlink, serverKey)
 	priceArray.reagentprice = tujData.reagentprice
 	priceArray.marketaverage = tujData.marketaverage
 	priceArray.marketstddev = tujData.marketstddev
+	priceArray.gemarketmedian = tujData.gemarketmedian
+	priceArray.gemarketaverage = tujData.gemarketaverage
+	priceArray.gemarketstddev = tujData.gemarketstddev
 
 	return priceArray
 end
@@ -119,12 +124,15 @@ end
 function private.OnLoad(addon)
 	if addon ~= "auc-stat-theunderminejournal" then return end
 
+	default("stat.underminejournal.enable", false)
 	default("stat.underminejournal.tooltip", false)
 	default("stat.underminejournal.reagents", true)
 	default("stat.underminejournal.mean", true)
 	default("stat.underminejournal.stddev", true)
+	default("stat.underminejournal.gemedian", true)
+	default("stat.underminejournal.gemean", true)
+	default("stat.underminejournal.gestddev", true)
 	default("stat.underminejournal.quantmul", true)
-	default("stat.underminejournal.enable", false)
 
 	-- Only run this function once.
 	private.OnLoad = nil
@@ -172,12 +180,18 @@ function private.SetupConfigGui(gui)
 
 		gui:AddControl(id, "Checkbox",   0, 4, "stat.underminejournal.tooltip", _TRANS('TUJ_Interface_Show'))
 		gui:AddTip(id, _TRANS('TUJ_HelpTooltip_Show'))
-		gui:AddControl(id, "Checkbox",   0, 6, "stat.underminejournal.reagents", _TRANS('TUJ_Interface_ToggleReagents'))
-		gui:AddTip(id, _TRANS('TUJ_HelpTooltip_ToggleReagents'))
-		gui:AddControl(id, "Checkbox",   0, 6, "stat.underminejournal.mean", _TRANS('TUJ_Interface_ToggleMean'))
-		gui:AddTip(id, _TRANS('TUJ_HelpTooltip_ToggleMean'))
-		gui:AddControl(id, "Checkbox",   0, 6, "stat.underminejournal.stddev", _TRANS('TUJ_Interface_ToggleStdDev'))
-		gui:AddTip(id, _TRANS('TUJ_HelpTooltip_ToggleStdDev'))
+		gui:AddControl(id, "Checkbox",   0, 6, "stat.underminejournal.reagents", _TRANS('TUJ_Interface_ToggleReagentsLatest'))
+		gui:AddTip(id, _TRANS('TUJ_HelpTooltip_ToggleReagentsLatest'))
+		gui:AddControl(id, "Checkbox",   0, 6, "stat.underminejournal.mean", _TRANS('TUJ_Interface_ToggleMarketMean'))
+		gui:AddTip(id, _TRANS('TUJ_HelpTooltip_ToggleMarketMean'))
+		gui:AddControl(id, "Checkbox",   0, 6, "stat.underminejournal.stddev", _TRANS('TUJ_Interface_ToggleMarketStdDev'))
+		gui:AddTip(id, _TRANS('TUJ_HelpTooltip_ToggleMarketStdDev'))
+		gui:AddControl(id, "Checkbox",   0, 6, "stat.underminejournal.gemedian", _TRANS('TUJ_Interface_ToggleGlobalMarketMedian'))
+		gui:AddTip(id, _TRANS('TUJ_HelpTooltip_ToggleGlobalMarketMedian'))
+		gui:AddControl(id, "Checkbox",   0, 6, "stat.underminejournal.gemean", _TRANS('TUJ_Interface_ToggleGlobalMarketMean'))
+		gui:AddTip(id, _TRANS('TUJ_HelpTooltip_ToggleGlobalMarketMean'))
+		gui:AddControl(id, "Checkbox",   0, 6, "stat.underminejournal.gestddev", _TRANS('TUJ_Interface_ToggleGlobalMarketStdDev'))
+		gui:AddTip(id, _TRANS('TUJ_HelpTooltip_ToggleGlobalMarketStdDev'))
 
 		gui:AddControl(id, "Checkbox",   0, 4, "stat.underminejournal.quantmul", _TRANS('TUJ_Interface_MultiplyStack'))
 		gui:AddTip(id, _TRANS('TUJ_HelpTooltip_MultiplyStack'))
@@ -206,6 +220,9 @@ function private.ProcessTooltip(tooltip, name, hyperlink, quality, quantity, cos
 	if tujData.market or tujData.reagentprice or tujData.marketaverage or tujData.marketstddev then
 		tooltip:AddLine("The Undermine Journal:")
 	end
+	if tujData.market and tujData.quantity then
+		tooltip:AddLine("  " .. _TRANS('TUJ_Tooltip_MarketLatestSeen'):format(tujData.quantity), tujData.market)
+	end
 	if tujData.market then
 		tooltip:AddLine("  " .. _TRANS('TUJ_Tooltip_MarketLatest'):format(quantity), tujData.market * quantity)
 	end
@@ -217,5 +234,14 @@ function private.ProcessTooltip(tooltip, name, hyperlink, quality, quantity, cos
 	end
 	if tujData.marketstddev and get("stat.underminejournal.stddev") then
 		tooltip:AddLine("  " .. _TRANS('TUJ_Tooltip_MarketStdDev'):format(quantity), tujData.marketstddev * quantity)
+	end
+	if tujData.gemarketmedian and get("stat.underminejournal.gemedian") then
+		tooltip:AddLine("  " .. _TRANS('TUJ_Tooltip_GlobalMarketMedian'):format(quantity), tujData.gemarketmedian * quantity)
+	end
+	if tujData.gemarketmean and get("stat.underminejournal.gemean") then
+		tooltip:AddLine("  " .. _TRANS('TUJ_Tooltip_GlobalMarketMean'):format(quantity), tujData.gemarketmean * quantity)
+	end
+	if tujData.gemarketstddev and get("stat.underminejournal.gestddev") then
+		tooltip:AddLine("  " .. _TRANS('TUJ_Tooltip_GlobalMarketStdDev'):format(quantity), tujData.gemarketstddev * quantity)
 	end
 end
