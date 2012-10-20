@@ -115,12 +115,6 @@ function lib.GetItemPDF(hyperlink, serverKey)
 	return bellCurve, lower, upper
 end
 
-function lib.IsValidAlgorithm(hyperlink)
-	if not get("stat.underminejournal.enable") then return false end
-	if not private.GetInfo(hyperlink, serverKey) then return end
-	return true, itemId
-end
-
 function private.OnLoad(addon)
 	if addon ~= "auc-stat-theunderminejournal" then return end
 
@@ -212,6 +206,7 @@ function private.ProcessTooltip(tooltip, name, hyperlink, quality, quantity, cos
 	else
 		if TUJTooltip then TUJTooltip(false) end
 	end
+	local serverKey = GetFaction()
 	if not private.GetInfo(hyperlink, serverKey) then return end
 
 	if not quantity or quantity < 1 then quantity = 1 end
